@@ -1,0 +1,120 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RoleUtilisateur {
+  MEMBRE
+  ADMINISTRATEUR
+
+  @@map("role_utilisateur")
+}
+
+enum SentimentAvis {
+  POSITIF
+  NEGATIF
+  NEUTRE
+
+  @@map("sentiment_avis")
+}
+
+model Utilisateur {
+  id          Int              @id @default(autoincrement())
+  prenom      String           @db.VarChar(100)
+  nom         String           @db.VarChar(100)
+  email       String           @unique @db.VarChar(255)
+  motDePasse  String           @map("mot_de_passe") @db.VarChar(255)
+  role        RoleUtilisateur  @default(MEMBRE)
+  dateInscrit DateTime         @default(now()) @map("date_inscrit")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @default(now()) @map("updated_at")
+  avis        Avis[]
+
+  @@map("utilisateur")
+}
+
+model CentreImotion {
+  id          Int         @id @default(autoincrement())
+  nom         String      @db.VarChar(200)
+  ville       String      @db.VarChar(100)
+  numTel      String      @map("num_tel") @db.VarChar(30)
+  adresse     String
+  description String?
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @default(now()) @map("updated_at")
+  coachs      Coach[]
+  seances     SeanceEMS[]
+
+  @@map("centre_imotion")
+}
+
+model Coach {
+  id          Int           @id @default(autoincrement())
+  prenom      String        @db.VarChar(100)
+  nom         String        @db.VarChar(100)
+  centreId    Int           @map("centre_id")
+  centre      CentreImotion @relation(fields: [centreId], references: [id], onDelete: Cascade)
+  specialite  String        @db.VarChar(150)
+  experience  String?       @db.VarChar(150)
+  biographie  String?
+  email       String?       @db.VarChar(255)
+  telephone   String?       @db.VarChar(30)
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @default(now()) @map("updated_at")
+  seances     SeanceCoach[]
+  avis        Avis[]
+
+  @@index([centreId], map: "idx_coach_centre")
+  @@map("coach")
+}
+
+model SeanceEMS {
+  id          Int           @id @default(autoincrement())
+  nom         String        @db.VarChar(200)
+  type        String        @db.VarChar(100)
+  description String?
+  centreId    Int           @map("centre_id")
+  centre      CentreImotion @relation(fields: [centreId], references: [id], onDelete: Cascade)
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @default(now()) @map("updated_at")
+  coachs      SeanceCoach[]
+  avis        Avis[]
+
+  @@index([centreId], map: "idx_seance_centre")
+  @@map("seance_ems")
+}
+
+model SeanceCoach {
+  seanceId Int       @map("seance_id")
+  coachId  Int       @map("coach_id")
+  seance   SeanceEMS @relation(fields: [seanceId], references: [id], onDelete: Cascade)
+  coach    Coach     @relation(fields: [coachId], references: [id], onDelete: Cascade)
+
+  @@id([seanceId, coachId])
+  @@map("seance_coach")
+}
+
+model Avis {
+  id            Int            @id @default(autoincrement())
+  note          Int            @db.SmallInt
+  commentaire   String?
+  sentiment     SentimentAvis?
+  seanceId      Int            @map("seance_id")
+  seance        SeanceEMS      @relation(fields: [seanceId], references: [id], onDelete: Cascade)
+  utilisateurId Int            @map("utilisateur_id")
+  utilisateur   Utilisateur    @relation(fields: [utilisateurId], references: [id], onDelete: Cascade)
+  coachId       Int?           @map("coach_id")
+  coach         Coach?         @relation(fields: [coachId], references: [id], onDelete: SetNull)
+  dateCreation  DateTime       @default(now()) @map("date_creation")
+  updatedAt     DateTime       @default(now()) @map("updated_at")
+
+  @@unique([utilisateurId, seanceId], map: "uq_avis_utilisateur_seance")
+  @@index([seanceId], map: "idx_avis_seance")
+  @@index([utilisateurId], map: "idx_avis_utilisateur")
+  @@index([coachId], map: "idx_avis_coach")
+  @@map("avis")
+}
